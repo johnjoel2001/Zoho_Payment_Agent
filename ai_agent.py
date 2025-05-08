@@ -60,7 +60,9 @@ def _process_line_returning_response(message, token):
         success = mark_invoices_as_paid(invoices_to_pay, amount, token)
         if success:
             invoice_info = "\n".join(f"✔ {inv['invoice_number']} | ₹{inv['balance']}" for inv in invoices_to_pay)
-            return f"✅ Payment recorded for {name} (₹{amount}):\n{invoice_info}"
+            # return f"✅ Payment recorded for {name} (₹{amount}):\n{invoice_info}"
+            # use invoice["customer_name"] from the matched invoice
+            return f"✅ Payment recorded for {invoice['customer_name']} (₹{amount}):\n{invoice_info}"
         else:
             return f"❌ Failed to mark invoice(s) for {name} as paid."
     else:
