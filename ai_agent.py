@@ -127,7 +127,10 @@ def _process_line_returning_response(message, token):
         return f"⚠️ Couldn't understand message: {message}"
 
     print(f"\n➡️ Processing: {name} paid ₹{amount}")
-    invoices_to_pay = find_invoice_combinations(name, amount, token)
+    result = find_invoice_combinations(name, amount, token)
+    
+    invoices_to_pay = result["matched"]
+    available_invoices = result["available"]
 
     if invoices_to_pay:
         success = mark_invoices_as_paid(invoices_to_pay, amount, token)
@@ -137,5 +140,12 @@ def _process_line_returning_response(message, token):
         else:
             return f"❌ Failed to mark invoice(s) for {name} as paid."
     else:
-        return f"❌ No suitable invoice combination found for {name} ₹{amount}"
+        # Show available invoices when no match is found
+        if available_invoices:
+            customer_name = available_invoices[0]['customer_name']
+            invoice_list = "\n".join(f"• {inv['invoice_number']} | ₹{inv['balance']}" for inv in available_invoices)
+            total_available = sum(float(inv['balance']) for inv in available_invoices)
+            return f"❌ No suitable invoice combination found for {name} ₹{amount}\n\n📋 Available invoices for {customer_name}:\n{invoice_list}\n\n💰 Total Outstanding: ₹{total_available:.2f}"
+        else:
+            return f"❌ No invoices found for customer: {name}"
 

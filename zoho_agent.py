@@ -72,10 +72,10 @@ def find_invoice_combinations(name, amount, token):
             total = sum(float(inv["balance"]) for inv in combo)
             if abs(total - float(amount)) <= 5:
                 print(f"✅ Matched combination of {r} invoices totaling ₹{total:.2f}")
-                return combo
+                return {"matched": combo, "available": []}
 
-    print("❌ No matching invoice combination found")
-    return []
+    # Return available invoices when no match is found
+    return {"matched": [], "available": matched_invoices}
 
 
 def mark_invoices_as_paid(invoices, total_amount, token, mode="Bank Transfer"):
