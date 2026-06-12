@@ -1,7 +1,12 @@
 import requests
 import datetime
+import os
+import json
 from itertools import combinations
+from openai import OpenAI
 from env import CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, ORG_ID
+
+ai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def get_access_token():
@@ -17,6 +22,35 @@ def get_access_token():
     token = res.json().get("access_token")
     print("✅ Access token retrieved:", token[:10], "...")
     return token
+
+
+def ai_match_customer_name(user_input, customer_names):
+    if not customer_names:
+        return None
+    prompt = f'''You are given a customer name from a user message and a list of actual customer names from our system.
+Find the BEST matching customer name from the list. The user input may contain:
+- Typos or misspellings (e.g. "mankattu" instead of "manakattu", "jayalakshni" instead of "jayalakshmi")
+- Missing or extra letters
+- Abbreviations or short forms
+- Different casing
+
+Be GENEROUS in matching — if the input is even roughly close to a name in the list, pick that name.
+Only return the exact matching name from the list, nothing else. If absolutely no reasonable match exists, return "NO_MATCH".
+
+User input: "{user_input}"
+
+Customer names:
+{json.dumps(customer_names)}'''
+
+    response = ai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+    matched = response.choices[0].message.content.strip().strip('"')
+    if matched == "NO_MATCH" or matched not in customer_names:
+        return None
+    return matched
 
 
 def find_invoice_combinations(name, amount, token):
@@ -58,21 +92,26 @@ def find_invoice_combinations(name, amount, token):
 
     all_invoices.sort(key=lambda inv: (inv.get("date", "9999-12-31"), extract_invoice_number(inv)))
 
-    # Fuzzy customer name match
-    def customer_name_match(user_input, customer_name):
-        user_words = user_input.lower().split()
-        customer_words = customer_name.lower().split()
-        return any(word in customer_words for word in user_words)
+    # Use AI to match customer name against actual Zoho customer names
+    unique_customers = list(set(inv["customer_name"] for inv in all_invoices if float(inv["balance"]) > 0))
+    matched_customer = ai_match_customer_name(name, unique_customers)
+    print(f"🤖 AI matched '{name}' → '{matched_customer}'")
 
-    matched_invoices = [inv for inv in all_invoices if customer_name_match(name, inv["customer_name"]) and float(inv["balance"]) > 0]
+    if not matched_customer:
+        return {"matched": [], "available": []}
 
-    # Try combinations of matched invoices to match amount
+    matched_invoices = [inv for inv in all_invoices if inv["customer_name"] == matched_customer and float(inv["balance"]) > 0]
+
+    if not matched_invoices:
+        return {"matched": [], "available": []}
+
+    # Try all combinations of matched invoices to find ones that sum to target amount
     for r in range(1, len(matched_invoices) + 1):
         for combo in combinations(matched_invoices, r):
             total = sum(float(inv["balance"]) for inv in combo)
             if abs(total - float(amount)) <= 5:
                 print(f"✅ Matched combination of {r} invoices totaling ₹{total:.2f}")
-                return {"matched": combo, "available": []}
+                return {"matched": list(combo), "available": []}
 
     # Return available invoices when no match is found
     return {"matched": [], "available": matched_invoices}
