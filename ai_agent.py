@@ -143,13 +143,22 @@ def _process_line_returning_response(message, token):
             else:
                 return f"❌ Failed to mark invoice(s) for {name} as paid."
         else:
-            # Multiple combinations found — ask user to select
+            # Multiple combinations found — let user pick invoices manually
             customer_name = matched_combos[0][0]['customer_name']
+            seen = set()
+            invoices = []
+            for combo in matched_combos:
+                for inv in combo:
+                    inv_id = inv["invoice_id"]
+                    if inv_id not in seen:
+                        seen.add(inv_id)
+                        invoices.append(inv)
+            invoices.sort(key=lambda inv: inv.get("date", "9999-12-31"))
             return {
                 "type": "selection",
                 "customer_name": customer_name,
                 "amount": amount,
-                "combos": matched_combos
+                "invoices": invoices
             }
     else:
         # Show available invoices when no match is found

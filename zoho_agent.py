@@ -115,7 +115,10 @@ def find_invoice_combinations(name, amount, token):
                 matched_combos.append(list(combo))
 
     if matched_combos:
-        return {"matched_combos": matched_combos, "available": []}
+        return {
+            "matched_combos": matched_combos,
+            "available": matched_invoices,
+        }
 
     # Return available invoices when no match is found
     return {"matched_combos": [], "available": matched_invoices}
