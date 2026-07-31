@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from ai_agent import handle_message_and_get_response
@@ -7,8 +8,22 @@ from zoho_agent import get_access_token, mark_invoices_as_paid
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Make sure this is stripped and clean
 
-# Store pending invoice selections: {session_id: {"combos": [...], "amount": ..., "customer_name": ...}}
-pending_selections = {}
+PENDING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_selections.json")
+
+
+def load_pending_selections():
+    if os.path.exists(PENDING_FILE):
+        try:
+            with open(PENDING_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+
+def save_pending_selections(data):
+    with open(PENDING_FILE, "w") as f:
+        json.dump(data, f)
 
 
 # 🔁 Process every incoming message
@@ -26,11 +41,13 @@ async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYP
         if isinstance(res, dict) and res.get("type") == "selection":
             # Multiple invoice combos found — show inline keyboard for user to pick
             session_id = uuid.uuid4().hex[:8]
-            pending_selections[session_id] = {
+            selections = load_pending_selections()
+            selections[session_id] = {
                 "combos": res["combos"],
                 "amount": res["amount"],
                 "customer_name": res["customer_name"]
             }
+            save_pending_selections(selections)
 
             keyboard = []
             for i, combo in enumerate(res["combos"]):
@@ -65,7 +82,8 @@ async def handle_selection_callback(update: Update, context: ContextTypes.DEFAUL
     session_id = parts[1]
     combo_index = int(parts[2])
 
-    selection = pending_selections.pop(session_id, None)
+    selections = load_pending_selections()
+    selection = selections.pop(session_id, None)
     if not selection:
         await query.edit_message_text("⚠️ This selection has expired. Please resend the payment message.")
         return
@@ -77,6 +95,8 @@ async def handle_selection_callback(update: Update, context: ContextTypes.DEFAUL
     if combo_index < 0 or combo_index >= len(combos):
         await query.edit_message_text("⚠️ Invalid option selected.")
         return
+
+    save_pending_selections(selections)
 
     selected_invoices = combos[combo_index]
     token = get_access_token()

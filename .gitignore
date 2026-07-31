@@ -20,3 +20,6 @@ Thumbs.db
 # Ignore logs or temp files
 *.log
 *.tmp
+
+# Ignore pending selections state
+pending_selections.json
