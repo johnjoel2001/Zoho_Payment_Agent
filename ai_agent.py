@@ -75,7 +75,13 @@ from zoho_agent import get_access_token, find_invoice_combinations, mark_invoice
 from openai import OpenAI
 import os
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.helicone.ai/v1",
+    default_headers={
+        "Helicone-Auth": os.getenv("HELICONE_API_KEY"),
+    }
+)
 
 def handle_message_and_get_response(message):
     responses = []

@@ -6,7 +6,13 @@ from itertools import combinations
 from openai import OpenAI
 from env import CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, ORG_ID
 
-ai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+ai_client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.helicone.ai/v1",
+    default_headers={
+        "Helicone-Auth": os.getenv("HELICONE_API_KEY"),
+    }
+)
 
 
 def get_access_token():
