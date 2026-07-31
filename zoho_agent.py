@@ -98,23 +98,27 @@ def find_invoice_combinations(name, amount, token):
     print(f"🤖 AI matched '{name}' → '{matched_customer}'")
 
     if not matched_customer:
-        return {"matched": [], "available": []}
+        return {"matched_combos": [], "available": []}
 
     matched_invoices = [inv for inv in all_invoices if inv["customer_name"] == matched_customer and float(inv["balance"]) > 0]
 
     if not matched_invoices:
-        return {"matched": [], "available": []}
+        return {"matched_combos": [], "available": []}
 
-    # Try all combinations of matched invoices to find ones that sum to target amount
+    # Find ALL combinations of matched invoices that sum to target amount
+    matched_combos = []
     for r in range(1, len(matched_invoices) + 1):
         for combo in combinations(matched_invoices, r):
             total = sum(float(inv["balance"]) for inv in combo)
             if abs(total - float(amount)) <= 5:
                 print(f"✅ Matched combination of {r} invoices totaling ₹{total:.2f}")
-                return {"matched": list(combo), "available": []}
+                matched_combos.append(list(combo))
+
+    if matched_combos:
+        return {"matched_combos": matched_combos, "available": []}
 
     # Return available invoices when no match is found
-    return {"matched": [], "available": matched_invoices}
+    return {"matched_combos": [], "available": matched_invoices}
 
 
 def mark_invoices_as_paid(invoices, total_amount, token, mode="Bank Transfer"):

@@ -21,7 +21,15 @@ def test_payment(message):
     print("="*60)
     for i, response in enumerate(responses, 1):
         print(f"\n[Response {i}]")
-        print(response)
+        if isinstance(response, dict) and response.get("type") == "selection":
+            print(f"🤔 Selection required for {response['customer_name']} (₹{response['amount']})")
+            print(f"   {len(response['combos'])} matching combinations found:")
+            for j, combo in enumerate(response['combos'], 1):
+                invoice_nums = ", ".join(inv["invoice_number"] for inv in combo)
+                total = sum(float(inv["balance"]) for inv in combo)
+                print(f"   Option {j}: {invoice_nums} (₹{total:.0f})")
+        else:
+            print(response)
     print("\n" + "="*60)
 
 if __name__ == "__main__":

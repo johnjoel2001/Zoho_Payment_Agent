@@ -128,17 +128,29 @@ def _process_line_returning_response(message, token):
 
     print(f"\n➡️ Processing: {name} paid ₹{amount}")
     result = find_invoice_combinations(name, amount, token)
-    
-    invoices_to_pay = result["matched"]
+
+    matched_combos = result["matched_combos"]
     available_invoices = result["available"]
 
-    if invoices_to_pay:
-        success = mark_invoices_as_paid(invoices_to_pay, amount, token)
-        if success:
-            invoice_info = "\n".join(f"✔ {inv['invoice_number']} | ₹{inv['balance']}" for inv in invoices_to_pay)
-            return f"✅ Payment recorded for {invoices_to_pay[0]['customer_name']} (₹{amount}):\n{invoice_info}"
+    if matched_combos:
+        # If exactly one combination matches, auto-apply it
+        if len(matched_combos) == 1:
+            invoices_to_pay = matched_combos[0]
+            success = mark_invoices_as_paid(invoices_to_pay, amount, token)
+            if success:
+                invoice_info = "\n".join(f"✔ {inv['invoice_number']} | ₹{inv['balance']}" for inv in invoices_to_pay)
+                return f"✅ Payment recorded for {invoices_to_pay[0]['customer_name']} (₹{amount}):\n{invoice_info}"
+            else:
+                return f"❌ Failed to mark invoice(s) for {name} as paid."
         else:
-            return f"❌ Failed to mark invoice(s) for {name} as paid."
+            # Multiple combinations found — ask user to select
+            customer_name = matched_combos[0][0]['customer_name']
+            return {
+                "type": "selection",
+                "customer_name": customer_name,
+                "amount": amount,
+                "combos": matched_combos
+            }
     else:
         # Show available invoices when no match is found
         if available_invoices:
